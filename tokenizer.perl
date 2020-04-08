@@ -29,7 +29,7 @@ if  (eval {require Thread;1;}) {
   Thread->import();
 }
 
-my $mydir = "$RealBin";
+my $mydir = "$RealBin/";
 
 my %NONBREAKING_PREFIX = ();
 my @protected_patterns = ();
