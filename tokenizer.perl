@@ -29,7 +29,7 @@ if  (eval {require Thread;1;}) {
   Thread->import();
 }
 
-my $mydir = "$RealBin/";
+my $mydir = "$RealBin/../share/nonbreaking_prefixes";
 
 my %NONBREAKING_PREFIX = ();
 my @protected_patterns = ();
@@ -257,8 +257,17 @@ sub tokenize
     $text =~ s/^ //g;
     $text =~ s/ $//g;
 
-    # seperate out all "other" special characters
-    $text =~ s/([^\p{IsAlnum}\s\.\'\`\,\-])/ $1 /g;
+    # separate out all "other" special characters
+    if (($language eq "fi") or ($language eq "sv")) {
+        # in Finnish and Swedish, the colon can be used inside words as an apostrophe-like character:
+        # USA:n, 20:een, EU:ssa, USA:s, S:t
+        $text =~ s/([^\p{IsAlnum}\s\.\:\'\`\,\-])/ $1 /g;
+        # if a colon is not immediately followed by lower-case characters, separate it out anyway
+        $text =~ s/(:)(?=$|[^\p{Ll}])/ $1 /g;
+    }
+    else {
+        $text =~ s/([^\p{IsAlnum}\s\.\'\`\,\-])/ $1 /g;
+    }
 
     # aggressive hyphen splitting
     if ($AGGRESSIVE)
@@ -316,6 +325,13 @@ sub tokenize
         $text =~ s/([\p{IsAlpha}])[']([^\p{IsAlpha}])/$1 ' $2/g;
         $text =~ s/([\p{IsAlpha}])[']([\p{IsAlpha}])/$1' $2/g;
     }
+    elsif ($language eq "so") 
+    {
+        # Don't split glottals
+        $text =~ s/([^\p{IsAlpha}])[']([^\p{IsAlpha}])/$1 ' $2/g;
+        $text =~ s/([^\p{IsAlpha}])[']([\p{IsAlpha}])/$1 ' $2/g;
+        $text =~ s/([\p{IsAlpha}])[']([^\p{IsAlpha}])/$1 ' $2/g;
+    }
     else
     {
         $text =~ s/\'/ \' /g;
@@ -330,10 +346,14 @@ sub tokenize
         if ( $word =~ /^(\S+)\.$/)
         {
             my $pre = $1;
-            if (($pre =~ /\./ && $pre =~ /\p{IsAlpha}/) || ($NONBREAKING_PREFIX{$pre} && $NONBREAKING_PREFIX{$pre}==1) || ($i<scalar(@words)-1 && ($words[$i+1] =~ /^[\p{IsLower}]/)))
+            if ($i == scalar(@words)-1) {
+                # split last words independently as they are unlikely to be non-breaking prefixes
+                $word = $pre." .";
+            }
+            elsif (($pre =~ /\./ && $pre =~ /\p{IsAlpha}/) || ($NONBREAKING_PREFIX{$pre} && $NONBREAKING_PREFIX{$pre}==1) || ($i<scalar(@words)-1 && ($words[$i+1] =~ /^[\p{IsLower}]/)))
             {
                 #no change
-			}
+            }
             elsif (($NONBREAKING_PREFIX{$pre} && $NONBREAKING_PREFIX{$pre}==2) && ($i<scalar(@words)-1 && ($words[$i+1] =~ /^[0-9]+/)))
             {
                 #no change
